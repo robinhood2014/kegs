@@ -626,32 +626,3 @@ int x_calc_ratio(float x,float y)
         //       Using this looks better as sleep() successfully syncs up with 1/60sec updates.
         return 1;
 }
-
-void dispatch_printed_page(int width, int height, const uint32_t *pixels, const char *text) {
-    if (g_env == NULL || g_thiz == NULL) return;
-    jclass cls = (*g_env)->GetObjectClass(g_env, g_thiz);
-    if (cls == NULL) return;
-
-    jmethodID mid = (*g_env)->GetMethodID(g_env, cls, "onPrinterPageFlushed", "(II[ILjava/lang/String;)V");
-    if (mid == NULL) {
-        (*g_env)->ExceptionClear(g_env);
-        return;
-    }
-
-    int total_pixels = width * height;
-    jintArray pixel_array = (*g_env)->NewIntArray(g_env, total_pixels);
-    if (pixel_array != NULL) {
-        (*g_env)->SetIntArrayRegion(g_env, pixel_array, 0, total_pixels, (const jint*)pixels);
-    }
-
-    jstring jtext = (*g_env)->NewStringUTF(g_env, text ? text : "");
-
-    (*g_env)->CallVoidMethod(g_env, g_thiz, mid, width, height, pixel_array, jtext);
-
-    if (pixel_array != NULL) {
-        (*g_env)->DeleteLocalRef(g_env, pixel_array);
-    }
-    if (jtext != NULL) {
-        (*g_env)->DeleteLocalRef(g_env, jtext);
-    }
-}

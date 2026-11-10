@@ -27,7 +27,6 @@ extern int g_irq_pending;
 /*        port 1 == channel B = slot 2 = c038/c03a */
 
 #include "scc.h"
-#include "imagewriter.h"
 #define SCC_R14_DPLL_SOURCE_BRG		0x100
 #define SCC_R14_FM_MODE			0x200
 
@@ -409,8 +408,6 @@ scc_update(double dcycs)
 	scc_try_to_empty_writebuf(1, dcycs);
 	scc_try_fill_readbuf(0, dcycs);
 	scc_try_fill_readbuf(1, dcycs);
-
-	imagewriter_check_timeout(dcycs);
 
 	scc_stat[0].write_called_this_vbl = 0;
 	scc_stat[1].write_called_this_vbl = 0;
@@ -1253,10 +1250,6 @@ scc_write_data(int port, word32 val, double dcycs)
 
 	scc_printf("SCC write %04x: %02x\n", 0xc03b-port, val);
 	scc_log(SCC_REGNUM(1,port,8), val, dcycs);
-
-	if (port == 1) {
-		imagewriter_process_byte((uint8_t)val);
-	}
 
 	scc_ptr = &(scc_stat[port]);
 	if(scc_ptr->reg[14] & 0x10) {
