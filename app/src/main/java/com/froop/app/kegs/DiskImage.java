@@ -46,13 +46,15 @@ class DiskImage implements Comparable {
 
   public static DiskImage fromPath(String path) {
     final File file = new File(path);
-    final long length = file.length();
     if (!file.exists()) {
       return null;
-    } else if (length >= 1024 * 1024) {
-      // TODO: should insert the disk and use the System 6 template
+    }
+    final String lower = path.toLowerCase();
+    final long length = file.length();
+
+    if (lower.endsWith(".hdv") || (length >= 1024 * 1024 && !lower.endsWith(".dsk") && !lower.endsWith(".nib"))) {
       return new DiskImage(path, "s7d1", 3, BOOT_SLOT_7, LOCALFILE);
-    } else if (length >= 400 * 1024) {
+    } else if (lower.endsWith(".2mg") || lower.endsWith(".po") || length >= 400 * 1024) {
       return new DiskImage(path, "s5d1", 2, BOOT_SLOT_5, LOCALFILE);
     } else if (length > 0) {
       return new DiskImage(path, "s6d1", 1, BOOT_SLOT_6, LOCALFILE);
@@ -62,24 +64,14 @@ class DiskImage implements Comparable {
   }
 
   public static boolean isDiskImageFilename(String filename) {
-    if (filename.endsWith(".2mg") ||
-        filename.endsWith(".dsk") ||
-        filename.endsWith(".nib") ||
-        filename.endsWith(".hdv") ||
-        filename.endsWith(".po") ||
-        filename.endsWith(".do") ||
-        filename.endsWith(".bin") ||
-        filename.endsWith(".2MG") ||
-        filename.endsWith(".DSK") ||
-        filename.endsWith(".NIB") ||
-        filename.endsWith(".HDV") ||
-        filename.endsWith(".PO") ||
-        filename.endsWith(".DO") ||
-        filename.endsWith(".BIN")) {
-      return true;
-    } else {
-      return false;
-    }
+    String lower = filename.toLowerCase();
+    return lower.endsWith(".2mg") ||
+           lower.endsWith(".dsk") ||
+           lower.endsWith(".nib") ||
+           lower.endsWith(".hdv") ||
+           lower.endsWith(".po")  ||
+           lower.endsWith(".do")  ||
+           lower.endsWith(".bin");
   }
 
   public String getBaseFilename() {
@@ -93,39 +85,70 @@ class DiskImage implements Comparable {
   }
 
   public int getIconId() {
-    if (this.template.equals(BOOT_SLOT_7)) {
-      return (R.drawable.ic_menu_save);  // FIXME should be hard disk icon
-    } else if (this.template.equals(BOOT_SLOT_5)) {
+    if (BOOT_SLOT_7.equals(this.template)) {
       return (R.drawable.ic_menu_save);
-    } else if (this.template.equals(BOOT_SLOT_6)) {
-      return (R.drawable.ic_menu_save);  // FIXME should be 5.25 disk icon
+    } else if (BOOT_SLOT_5.equals(this.template)) {
+      return (R.drawable.ic_menu_save);
+    } else if (BOOT_SLOT_6.equals(this.template)) {
+      return (R.drawable.ic_menu_save);
     } else {
-      return (R.drawable.ic_menu_save);  // FIXME should be question mark icon
+      return (R.drawable.ic_menu_save);
+    }
+  }
+
+  public int getSlot() {
+    if (this.drive != null && this.drive.startsWith("s") && this.drive.contains("d")) {
+      try {
+        return Integer.parseInt(this.drive.substring(1, this.drive.indexOf('d')));
+      } catch (Exception e) {
+        return 7;
+      }
+    }
+    return 7;
+  }
+
+  public int getDriveNumber() {
+    if (this.drive != null && this.drive.contains("d")) {
+      try {
+        return Integer.parseInt(this.drive.substring(this.drive.indexOf('d') + 1));
+      } catch (Exception e) {
+        return 1;
+      }
+    }
+    return 1;
+  }
+
+  public void setDrive(int slot, int driveNum) {
+    this.drive = "s" + slot + "d" + driveNum;
+    if (slot == 7) {
+      this.template = BOOT_SLOT_7;
+      this.speed = 3;
+    } else if (slot == 5) {
+      this.template = BOOT_SLOT_5;
+      this.speed = 2;
+    } else if (slot == 6) {
+      this.template = BOOT_SLOT_6;
+      this.speed = 1;
     }
   }
 
   public Event.DiskImageEvent getDiskImageEvent() {
-    if (this.drive.substring(0, 1).equals("s") &&
-        this.drive.substring(2, 3).equals("d")) {
-      int slot = Integer.parseInt(this.drive.substring(1, 2));
-      int drive = Integer.parseInt(this.drive.substring(3));
-      return new Event.DiskImageEvent(this.filename, slot, drive);
-    } else {
-      Log.e("kegs", "disk image " + this.filename + " has bad drive " + this.drive);
-      return null;
+    if (this.drive != null && this.drive.startsWith("s") && this.drive.contains("d")) {
+      int dIndex = this.drive.indexOf('d');
+      try {
+        int slot = Integer.parseInt(this.drive.substring(1, dIndex));
+        int drive = Integer.parseInt(this.drive.substring(dIndex + 1));
+        return new Event.DiskImageEvent(this.filename, slot, drive);
+      } catch (Exception e) {
+        Log.e("kegs", "Failed to parse drive string: " + this.drive, e);
+      }
     }
-  }
-
-  public void chooseDriveNumber(final DriveNumber driveNumber) {
-    this.drive = this.drive.substring(0, 3) + driveNumber.drive;
-    driveNumber.drive++;
-    if (driveNumber.drive > 7) {
-      driveNumber.drive = 2;
-    }
+    Log.e("kegs", "disk image " + this.filename + " has bad drive " + this.drive);
+    return null;
   }
 
   public boolean isHardDrive() {
-    return this.drive.substring(0, 2).equals("s7");
+    return this.drive != null && this.drive.startsWith("s7");
   }
 
   public int compareTo(Object other) {
@@ -134,9 +157,5 @@ class DiskImage implements Comparable {
     } else {
       throw new ClassCastException();
     }
-  }
-
-  static class DriveNumber {
-    public int drive = 2;
   }
 }

@@ -30,6 +30,11 @@ class KegsThread extends Thread {
   }
   private UpdateScreen mUpdateScreen;
 
+  interface OnPrintedPage {
+    void onPrintedPage(int width, int height, int[] pixels, String textContent);
+  }
+  private OnPrintedPage mOnPrintedPage;
+
   public KegsThread(String configFile, Bitmap bitmap) {
     mConfigFile = configFile;
     mBitmap = bitmap;
@@ -41,6 +46,17 @@ class KegsThread extends Thread {
 
   public void registerUpdateScreenInterface(UpdateScreen update) {
     mUpdateScreen = update;
+  }
+
+  public void registerOnPrintedPageInterface(OnPrintedPage listener) {
+    mOnPrintedPage = listener;
+  }
+
+  // Called by native thread via JNI.
+  private void onPrinterPageFlushed(int width, int height, int[] pixels, String textContent) {
+    if (mOnPrintedPage != null) {
+      mOnPrintedPage.onPrintedPage(width, height, pixels, textContent);
+    }
   }
 
   // Called by native thread.  Sometimes called by UI thread.

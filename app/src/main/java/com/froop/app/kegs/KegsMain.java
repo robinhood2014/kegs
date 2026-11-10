@@ -38,7 +38,7 @@ import java.io.InputStream;
 
 import java.util.ArrayDeque;
 
-public class KegsMain extends Activity implements KegsKeyboard.StickyReset, AssetImages.AssetsReady, DiskLoader.ImageReady {
+public class KegsMain extends Activity implements KegsKeyboard.StickyReset, AssetImages.AssetsReady, DiskLoader.ImageReady, KegsThread.OnPrintedPage {
   private static final String FRAGMENT_ROM = "rom";
   private static final String FRAGMENT_DOWNLOAD = "download";
   private static final String FRAGMENT_ERROR = "error";
@@ -65,7 +65,6 @@ public class KegsMain extends Activity implements KegsKeyboard.StickyReset, Asse
   private final Runnable mErrorFinish = new Runnable() { public void run() { finish(); } };
 
   private DiskLoader mDiskLoader = null;
-  private final DiskImage.DriveNumber mDriveNumber = new DiskImage.DriveNumber();
 
   private void withUIActive(final Runnable runnable) {
     if(!mPaused) {
@@ -160,11 +159,16 @@ public class KegsMain extends Activity implements KegsKeyboard.StickyReset, Asse
           mConfigFile.setConfig(image);
           getThread().allowPowerOn();
         } else if (image.action == DiskImage.SWAP) {
-          if (image.isHardDrive()) {
-            image.chooseDriveNumber(mDriveNumber);
-          }
           getThread().getEventQueue().add(image.getDiskImageEvent());
         }
+      }
+    });
+  }
+
+  public void onPrintedPage(final int width, final int height, final int[] pixels, final String textContent) {
+    runOnUiThread(new Runnable() {
+      public void run() {
+        ImageWriterHelper.savePrintedPage(KegsMain.this, width, height, pixels, textContent);
       }
     });
   }
@@ -646,6 +650,9 @@ public class KegsMain extends Activity implements KegsKeyboard.StickyReset, Asse
       findViewById(R.id.b2).setVisibility(vis);
       findViewById(R.id.b3).setVisibility(vis);
       return true;
+    } else if (item_id == R.id.action_printer) {
+      new PrinterDialogFragment().show(getFragmentManager(), "printer");
+      return true;
     } else if (item_id == R.id.action_power_off) {
       getThread().doPowerOff();
       finish();
@@ -701,6 +708,7 @@ public class KegsMain extends Activity implements KegsKeyboard.StickyReset, Asse
     mKegsThread = new KegsThread(mConfigFile.getConfigFile(),
                                  mKegsView.getBitmap());
     mKegsThread.registerUpdateScreenInterface(mKegsView);
+    mKegsThread.registerOnPrintedPageInterface(this);
 
     mTouchMouse = new TouchMouse(this, getThread().getEventQueue());
     mJoystick = new TouchJoystick(getThread().getEventQueue());

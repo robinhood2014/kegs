@@ -27,6 +27,10 @@
         android:title="@string/more_keys"
         app:showAsAction="never" />
 
+    <item android:id="@+id/action_printer"
+        android:title="@string/printer_output"
+        app:showAsAction="never" />
+
     <item android:id="@+id/action_power_off"
         android:title="@string/power_off"
         app:showAsAction="never" />
